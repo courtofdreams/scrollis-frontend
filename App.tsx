@@ -1,20 +1,23 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+// App.tsx
+import React from 'react'
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native'
+import { TwitterAuthProvider } from './src/contexts/AppAuthContext'
+import RootNavigator from './src/navigators/RootNavigator'
+
+
+const MyTheme = {
+  ...DefaultTheme,
+  colors: {
+    background: '#fff', // Your custom background color
+  },
+};
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
-  );
+    <TwitterAuthProvider>
+      <NavigationContainer >
+        <RootNavigator />
+      </NavigationContainer>
+    </TwitterAuthProvider>
+  )
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

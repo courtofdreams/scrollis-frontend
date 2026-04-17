@@ -1,0 +1,32 @@
+import React from 'react'
+import { View, Text, StyleSheet } from 'react-native'
+
+export default function SearchScreen() {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Search</Text>
+      <Text style={styles.subtitle}>
+        This is the Search screen. Add search functionality and relevant content here.
+      </Text>
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 24,
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: 30,
+    fontWeight: '700',
+    color: '#182033',
+    marginBottom: 12,
+  },
+  subtitle: {
+    fontSize: 18,
+    lineHeight: 28,
+    color: '#667085',
+  },
+})
