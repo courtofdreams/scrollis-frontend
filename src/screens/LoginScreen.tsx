@@ -180,8 +180,8 @@ export default function LoginScreen() {
 			}else {
 				loginData.username = username;
 			}
-			await signIn(loginData);
-			if (needToConnectedSocial){
+			const result = await signIn(loginData);
+			if (result.user.need_to_connected_social){
 				navigation.navigate('SocialMediaSync');
 			}else {	
 				navigation.navigate('FeedSkeletonScreen');

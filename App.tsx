@@ -5,23 +5,19 @@ import { TwitterAuthProvider } from './src/contexts/AppAuthContext'
 import RootNavigator from './src/navigators/RootNavigator'
 import { clearAllSessions } from './src/utils/TokenManager';
 import { AnalysisProvider } from './src/contexts/AnalysisContext';
-import * as SplashScreen from 'expo-splash-screen';
-import ScrolisSplash from './src/screens/ScrolisSplash';
+import ScrolisSplash, { useSplashTransition } from './src/screens/ScrolisSplash';
+import { Animated, StyleSheet } from "react-native";
 
-SplashScreen.preventAutoHideAsync();
 
 export default function App() {
 
   const [showAnimatedSplash, setShowAnimatedSplash] = useState(true);
+  const { translateY, trigger } = useSplashTransition(() => {
+    setShowAnimatedSplash(false);
+  });
 
   useEffect(() => {
-    async function prepare() {
-      // fonts/api preload etc
-      await SplashScreen.hideAsync(); // hide native splash only when ready
-    }
-
     clearAllSessions();
-    prepare();
   }, []);
 
   return (
@@ -29,8 +25,21 @@ export default function App() {
       <AnalysisProvider>
         <NavigationContainer >
           <RootNavigator />
+
+          {showAnimatedSplash && (
+            <Animated.View
+              style={{
+                ...StyleSheet.absoluteFillObject,
+                 transform: [{ translateY }],
+                zIndex: 999,
+              }}
+            >
+              <ScrolisSplash onAnimDone={trigger} />
+            </Animated.View>
+          )}
         </NavigationContainer>
       </AnalysisProvider>
     </TwitterAuthProvider>
+
   )
 }

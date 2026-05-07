@@ -74,7 +74,7 @@ export default function ScrolisSplash({ onAnimDone }: ScrolisSplashProps) {
           easing: Easing.out(Easing.ease),
           useNativeDriver: true,
         }).start(() => onAnimDone?.());
-      }, 150);
+      }, 300);
     });
   }, [arcAnims, labelAnim, onAnimDone]);
 
@@ -92,12 +92,17 @@ export default function ScrolisSplash({ onAnimDone }: ScrolisSplashProps) {
 
           return (
             <AnimatedPath
-              key={i}
               fill="none"
               stroke="#5147C4"
               strokeWidth={arc.strokeWidth}
               strokeLinecap="round"
-              d={d as unknown as string}
+              key={`arc-${arc.r}`}
+              d={arcPath(cx, cy, arc.r, arc.startAngle, arc.totalSweep)}
+              strokeDasharray={400}
+              strokeDashoffset={arcAnims[i].interpolate({
+                inputRange: [0, 1],
+                outputRange: [400, 0],
+              })}
             />
           );
         })}
