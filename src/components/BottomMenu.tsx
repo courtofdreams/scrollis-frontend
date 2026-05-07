@@ -2,7 +2,7 @@ import React from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons'
 
-export type TabKey = 'feed' | 'explore' | 'search' | 'profile'
+export type TabKey = 'feed'| 'search' | 'profile'
 
 type BottomMenuProps = {
   activeTab: TabKey
@@ -46,16 +46,6 @@ export default function BottomMenu({
           name="home-outline"
           size={24}
           color={activeTab === 'feed' ? PRIMARY : MUTED}
-        />
-      )}
-
-      {renderTab(
-        'explore',
-        'Explore',
-        <MaterialCommunityIcons
-          name="compass-outline"
-          size={24}
-          color={activeTab === 'explore' ? PRIMARY : MUTED}
         />
       )}
 

@@ -1,344 +1,376 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import {
     View,
     Text,
     StyleSheet,
-    TextInput,
+    Image,
     ScrollView,
     TouchableOpacity,
 } from 'react-native'
-import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
+import { Feather, Ionicons } from '@expo/vector-icons'
 import { useNavigation } from '@react-navigation/native'
 import { FeedStackParamList } from '../navigators/FeedStackNavigator'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
-
-type FeedScreenProps = {
-    onPressExplore?: () => void
-}
-
-const PRIMARY = '#5448B7'
-const TEXT = '#182033'
-const MUTED = '#667085'
-const BORDER = '#E6E8EC'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { useAnalysisResult } from '../contexts/AnalysisContext'
+import { RepresentativePost, Topic, TopicDigestResponse } from '../models/Analysis'
+import { useAppAuthContext } from '../contexts/AppAuthContext'
 
 type FeedScreenNavProp = NativeStackNavigationProp<
-  FeedStackParamList,
-  'FeedHome'
+    FeedStackParamList,
+    'FeedHome'
 >
 
-export default function FeedScreen({ onPressExplore }: FeedScreenProps) {
-    const navigation = useNavigation<FeedScreenNavProp>()
+type TopicView = {
+    id: number;
+    category: string;
+    headline: string;
+    postCount: number;
+    summary: string;
+    updatedAgo: string;
+}
 
-    const navigateToTopicDetail = (topicTitle: string, summary: string, postCount: number, topicId?: string) => {
+export default function FeedScreen() {
+    const navigation = useNavigation<FeedScreenNavProp>()
+    const { analysis } = useAnalysisResult();
+    const [feedTopics, setFeedTopics] = React.useState<TopicView[]>([]);
+    const [digestSummary, setDigestSummary] = React.useState<string>("")
+    const [currentDate, setCurrentDate] = React.useState<string>("");
+    const { loginStreak } = useAppAuthContext();
+
+    const navigateToTopicDetail = (topicId: number) => {
+        console.log('Navigating to TopicDetail with topicId:', topicId);
         navigation.navigate("TopicDetail", {
-            topicTitle: topicTitle,
-            summary: summary,
-            postCount: postCount,
             topicId: topicId,
         })
     }
+
+    const getLatestUpdateTime = (topic: Topic): string => {
+        const mostRecentPost = topic.representative_posts.reduce((latest, post) => {
+            const postDate = new Date(post.created_at);
+            return postDate > latest ? postDate : latest;
+        }, new Date(0));
+
+        const now = new Date();
+        const diffInMs = now.getTime() - mostRecentPost.getTime();
+        const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+
+        return `${diffInHours}h ago`;
+    }
+
+    const parseAnalysisToFeedTopics = (analysis: TopicDigestResponse): TopicView[] => {
+        return analysis.topics.map((topic: Topic) => ({
+            id: topic.topic_id,
+            category: topic.category,
+            headline: topic.headline,
+            summary: topic.short_summary,
+            postCount: topic.n_posts,
+            updatedAgo: getLatestUpdateTime(topic),
+        }));
+    }
+
+    useEffect(() => {
+        if (analysis) {
+            // extract key insights for digest points - for simplicity, we'll just take the first 5 topics here
+            setCurrentDate(new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' }));
+            setDigestSummary(analysis.digest);
+            setFeedTopics(parseAnalysisToFeedTopics(analysis));
+        }
+    }, [analysis]);
+
     return (
-        <>
-            <View style={styles.topBar}>
-                <Text style={styles.logo}>Scrolis</Text>
-                <TouchableOpacity style={styles.topIconButton}>
-                    <Feather name="sliders" size={24} color="#667085" />
-                </TouchableOpacity>
-            </View>
-
-            <View style={styles.searchWrapper}>
-                <Feather name="search" size={22} color="#98A2B3" style={styles.searchIcon} />
-                <TextInput
-                    placeholder="Search topics..."
-                    placeholderTextColor="#98A2B3"
-                    style={styles.searchInput}
-                />
-            </View>
-
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-                style={{ flex: 1 }}
-            >
-                <View style={styles.digestCard}>
-                    <Text style={styles.digestTitle}>Today's Digest</Text>
-                    <Text style={styles.digestDate}>Monday, March 2, 2026</Text>
-
-                    <Text style={styles.digestLabel}>IN TODAY'S DIGEST</Text>
-                    <Text style={styles.digestText}>
-                        Covering AI & Machine Learning, Climate & Sustainability, Housing &
-                        Urban Development + 2 more
-                    </Text>
+        <SafeAreaView style={styles.container}>
+            <View style={styles.screen}>
+                <View style={styles.topBar}>
+                    <View style={styles.brandRow}>
+                        <Image
+                            source={require('../assets/logo.png')}
+                            style={styles.logoImage}
+                            resizeMode="contain"
+                        />
+                        <Text style={styles.logo}>Scrolis</Text>
+                    </View>
                 </View>
 
-                <View style={styles.perspectiveCard}>
-                    <View style={styles.perspectiveIconWrap}>
-                        <MaterialCommunityIcons
-                            name="compass-outline"
-                            size={24}
-                            color="#5B4DB2"
-                        />
-                    </View>
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                >
+                    <View style={styles.digestBanner}>
+                        <TouchableOpacity style={styles.dismissButton}>
+                            <Ionicons name="close" size={20} color="#8E8DA4" />
+                        </TouchableOpacity>
 
-                    <View style={styles.perspectiveContent}>
-                        <Text style={styles.perspectiveText}>
-                            You've read mostly similar sources today. Want to mix it up?
+                        <Text style={styles.digestBannerText}>
+                            Your digest is live. Add more accounts anytime to improve it.
                         </Text>
 
-                        <TouchableOpacity style={styles.primaryButton} onPress={onPressExplore}>
-                            <Text style={styles.primaryButtonText}>
-                                Explore diverse perspectives
-                            </Text>
-                        </TouchableOpacity>
-
                         <TouchableOpacity>
-                            <Text style={styles.secondaryText}>Not now</Text>
+                            <Text style={styles.addAccountText}>+ Add account</Text>
                         </TouchableOpacity>
                     </View>
-                </View>
 
-                <TouchableOpacity style={styles.topicCard} onPress={() => navigateToTopicDetail('AI & Machine Learning', 'New EU AI regulations announced...', 30, '1')}>
-                    <Text style={styles.topicTitle}>AI & Machine Learning</Text>
-                    <Text style={styles.topicDescription}>
-                        New EU AI regulations announced. Tech companies push back on
-                        compliance...
-                    </Text>
+                    <View style={styles.digestCard}>
+                        <Text style={styles.digestTitle}>Hey, it&apos;s {currentDate}.</Text>
+                        <Text style={styles.digestSubtitle}> {feedTopics.length} Things Worth Knowing</Text>
+                        <Text style={styles.digestText}>
+                            {digestSummary}
+                        </Text>
 
-                    <View style={styles.sourceRow}>
-                        <View style={styles.inlineRow}>
-                            <Feather name="twitter" size={16} color="#667085" />
-                            <Text style={styles.sourceText}> via X</Text>
-                        </View>
-
-                        <View style={styles.inlineRow}>
-                            <Ionicons name="chatbubble-outline" size={16} color="#667085" />
-                            <Text style={styles.sourceText}> via Reddit</Text>
-                        </View>
+                        {feedTopics.map((topic, index) => (
+                            <View key={`${topic.id}-${index}`} style={styles.digestPointRow}>
+                                <Text style={styles.digestPointNumber}>
+                                    {(index + 1).toString().padStart(2, '0')}
+                                </Text>
+                                <Text style={styles.digestPointText}>{topic.headline}</Text>
+                            </View>
+                        ))}
+                        {(loginStreak ?? 0) > 0 && (
+                            <View style={styles.streakCard}>
+                                <Text style={styles.streakEmoji}>🔥</Text>
+                                <View>
+                                    <Text style={styles.streakTitle}>You&apos;re locked in.</Text>
+                                    <Text style={styles.streakText}>
+                                        {loginStreak} days running - your longest streak yet.
+                                    </Text>
+                                </View>
+                            </View>)}
                     </View>
 
-                    <View style={styles.metaRow}>
-                        <View style={styles.inlineRow}>
-                            <View style={styles.greenDot} />
-                            <Text style={styles.metaText}>Verified sources</Text>
-                            <Ionicons
-                                name="information-circle-outline"
-                                size={16}
-                                color="#98A2B3"
-                                style={{ marginLeft: 4 }}
-                            />
-                        </View>
+                    <Text style={styles.sectionTitle}>All Topics</Text>
 
-                        <View style={styles.inlineRow}>
-                            <Ionicons
-                                name="chatbubble-outline"
-                                size={16}
-                                color="#667085"
-                                style={{ marginRight: 6 }}
-                            />
-                            <Text style={styles.metaText}>30 posts</Text>
-                        </View>
-                    </View>
+                    {feedTopics.map(topic => (
+                        <TouchableOpacity
+                            key={topic.id + topic.headline}
+                            style={styles.topicCard}
+                            onPress={() =>
+                                navigateToTopicDetail(
+                                    topic.id
+                                )
+                            }
+                        >
+                            <Text style={styles.topicTitle}>{topic.headline}</Text>
+                            <Text style={styles.topicDescription}>{topic.summary}</Text>
 
-                    <View style={styles.inlineRow}>
-                        <Feather name="clock" size={16} color="#98A2B3" />
-                        <Text style={styles.timeText}> Updated 2h ago</Text>
-                    </View>
-                </TouchableOpacity>
-
-                <View style={styles.topicCard}>
-                    <Text style={styles.topicTitle}>Climate & Sustainability</Text>
-                    <Text style={styles.topicDescription}>
-                        Latest IPCC report shows faster warming trends across key regions...
-                    </Text>
-                </View>
-                
-                <TouchableOpacity style={styles.topicCard} onPress={() => navigateToTopicDetail('All Posts (Just for Testing)', 'New EU AI regulations announced...', 100, 'raw')}>
-                    <Text style={styles.topicTitle}>All Posts (Just for Testing)</Text>
-                    <Text style={styles.topicDescription}>
-                        Click here to read the  posts before doing topic modelling from all sources. No AI summaries, just the raw content stream.
-                    </Text>
-                </TouchableOpacity>
-            </ScrollView>
-        </>
+                            <View style={styles.cardMetaRow}>
+                                <View style={styles.inlineRow}>
+                                    <Feather
+                                        name="clock"
+                                        size={16}
+                                        color="#8A8A8A"
+                                        style={styles.metaIcon}
+                                    />
+                                    <Text style={styles.metaLineText}>{topic.updatedAgo}</Text>
+                                </View>
+                            </View>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+            </View>
+        </SafeAreaView>
     )
 }
 
 const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#fff',
+    },
+    screen: {
+        flex: 1,
+        backgroundColor: '#E8E6E0',
+    },
     topBar: {
+        backgroundColor: '#FFFFFF',
+        paddingHorizontal: 22,
+        paddingTop: 14,
+        paddingBottom: 16,
+    },
+    brandRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingTop: 8,
-        paddingBottom: 14,
+    },
+    logoImage: {
+        width: 26,
+        height: 26,
+        marginRight: 2,
     },
     logo: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: TEXT,
-    },
-    topIconButton: {
-        width: 36,
-        alignItems: 'flex-end',
-    },
-    searchWrapper: {
-        marginHorizontal: 20,
-        marginBottom: 18,
-        height: 56,
-        borderRadius: 18,
-        backgroundColor: '#F1F2F6',
-        flexDirection: 'row',
+        fontSize: 20,
+        lineHeight: 26,
+        fontWeight: '800',
+        color: '#2F2A6B',
+        display: 'flex',
         alignItems: 'center',
-        paddingHorizontal: 16,
-    },
-    searchIcon: {
-        marginRight: 10,
-    },
-    searchInput: {
-        flex: 1,
-        fontSize: 18,
-        color: TEXT,
     },
     scrollContent: {
-        paddingHorizontal: 20,
+        paddingHorizontal: 16,
+        paddingTop: 14,
         paddingBottom: 140,
     },
-    digestCard: {
-        backgroundColor: PRIMARY,
+    digestBanner: {
+        backgroundColor: '#DCDCED',
+        borderColor: '#BFC0EB',
+        borderWidth: 1,
         borderRadius: 18,
-        padding: 20,
+        paddingHorizontal: 18,
+        paddingTop: 20,
+        paddingBottom: 16,
+        marginBottom: 16,
+        alignItems: 'center',
+    },
+    dismissButton: {
+        position: 'absolute',
+        top: 12,
+        right: 12,
+    },
+    digestBannerText: {
+        color: '#30334A',
+        fontSize: 12,
+        lineHeight: 20,
+        textAlign: 'center',
+        marginBottom: 4,
+        paddingHorizontal: 24,
+        fontWeight: '500',
+    },
+    addAccountText: {
+        color: '#4E48BD',
+        fontSize: 11,
+        fontWeight: '700',
+    },
+    digestCard: {
+        backgroundColor: '#F7F7F8',
+        borderRadius: 20,
+        borderColor: '#E5E7EB',
+        borderWidth: 1,
+        paddingHorizontal: 16,
+        paddingVertical: 16,
         marginBottom: 20,
     },
     digestTitle: {
-        color: '#fff',
-        fontSize: 20,
-        fontWeight: '700',
-        marginBottom: 10,
+        color: '#2C2A67',
+        fontSize: 22,
+        lineHeight: 30,
+        fontWeight: '800',
+        marginBottom: 4,
     },
-    digestDate: {
-        color: '#E7E3FF',
-        fontSize: 17,
-        fontWeight: '600',
-        marginBottom: 10,
-    },
-    digestLabel: {
-        color: '#C9C2FF',
-        fontSize: 14,
+    digestSubtitle: {
+        color: '#4E48BD',
+        fontSize: 16,
+        lineHeight: 22,
         fontWeight: '700',
-        letterSpacing: 1,
         marginBottom: 14,
     },
     digestText: {
-        color: '#fff',
-        fontSize: 15,
-        lineHeight: 18,
-        fontWeight: '600',
-    },
-    perspectiveCard: {
-        backgroundColor: '#F4EFFB',
-        borderRadius: 15,
-        padding: 20,
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: '#E8DDF8',
-    },
-    perspectiveIconWrap: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: '#fff',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 16,
-        marginTop: 2,
-    },
-    perspectiveContent: {
-        flex: 1,
-    },
-    perspectiveText: {
+        color: '#2F3135',
         fontSize: 16,
-        lineHeight: 28,
-        color: TEXT,
-        marginBottom: 16,
+        lineHeight: 30,
         fontWeight: '500',
+        marginBottom: 14,
     },
-    primaryButton: {
-        backgroundColor: PRIMARY,
-        paddingVertical: 14,
-        paddingHorizontal: 18,
-        borderRadius: 999,
-        alignSelf: 'flex-start',
-        marginBottom: 16,
+    digestPointRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#D5D2EF',
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        marginBottom: 8,
     },
-    primaryButtonText: {
-        color: '#fff',
-        fontWeight: '700',
-        fontSize: 15,
+    digestPointNumber: {
+        color: '#2E2A6B',
+        fontSize: 18,
+        lineHeight: 22,
+        fontWeight: '800',
+        marginRight: 12,
+        minWidth: 26,
     },
-    secondaryText: {
-        color: MUTED,
-        fontSize: 15,
+    digestPointText: {
+        flex: 1,
+        color: '#2E2A6B',
+        fontSize: 14,
+        lineHeight: 22,
         fontWeight: '600',
+    },
+    streakCard: {
+        marginTop: 10,
+        backgroundColor: '#29256B',
+        borderRadius: 14,
+        paddingHorizontal: 12,
+        paddingVertical: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    streakEmoji: {
+        fontSize: 28,
+        marginRight: 10,
+    },
+    streakTitle: {
+        color: '#F8F7FF',
+        fontSize: 12,
+        lineHeight: 18,
+        fontWeight: '700',
+    },
+    streakText: {
+        color: '#F8F7FF',
+        fontSize: 10,
+        lineHeight: 16,
+        fontWeight: '600',
+    },
+    sectionTitle: {
+        color: '#1F2328',
+        fontSize: 18,
+        lineHeight: 24,
+        fontWeight: '800',
+        marginBottom: 12,
+        marginLeft: 2,
     },
     topicCard: {
-        backgroundColor: '#fff',
-        borderRadius: 14,
-        padding: 22,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 18,
+        paddingHorizontal: 18,
+        paddingVertical: 18,
         borderWidth: 1,
-        borderColor: BORDER,
-        marginBottom: 20,
+        borderColor: '#E4E5E7',
+        marginBottom: 14,
+        shadowColor: '#101828',
+        shadowOpacity: 0.04,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 2,
     },
     topicTitle: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: TEXT,
-        marginBottom: 16,
+        fontSize: 20,
+        lineHeight: 30,
+        fontWeight: '800',
+        color: '#1A1A1A',
+        marginBottom: 8,
     },
     topicDescription: {
-        fontSize: 18,
-        lineHeight: 30,
-        color: '#475467',
-        fontWeight: '500',
-        marginBottom: 20,
+        fontSize: 16,
+        lineHeight: 22,
+        color: '#6B6B6B',
+        fontWeight: '400',
+        marginBottom: 12,
     },
-    sourceRow: {
+    cardMetaRow: {
         flexDirection: 'row',
-        gap: 16,
-        marginBottom: 18,
+        alignItems: 'center',
         flexWrap: 'wrap',
-    },
-    metaRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        marginBottom: 18,
+        columnGap: 18,
+        rowGap: 8,
     },
     inlineRow: {
         flexDirection: 'row',
         alignItems: 'center',
     },
-    sourceText: {
-        color: MUTED,
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    metaText: {
-        color: '#475467',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    timeText: {
-        color: '#98A2B3',
-        fontSize: 16,
-        fontWeight: '500',
-    },
-    greenDot: {
-        width: 10,
-        height: 10,
-        borderRadius: 5,
-        backgroundColor: '#12B76A',
+    metaIcon: {
         marginRight: 8,
+    },
+    metaLineText: {
+        color: '#7A7A7A',
+        fontSize: 15,
+        fontWeight: '500',
     },
 })

@@ -8,10 +8,7 @@ import TopicDetailScreen from '../screens/TopicDetailScreen'
 export type FeedStackParamList = {
   FeedHome: undefined
   TopicDetail: {
-    topicTitle: string
-    summary: string
-    postCount: number
-    topicId?: string  
+    topicId: number  
   }
 }
 

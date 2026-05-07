@@ -1,37 +1,43 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
+  Dimensions,
+  FlatList,
+  Image,
+  ImageSourcePropType,
   Linking,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import {
-  Feather,
-  Ionicons,
-  MaterialCommunityIcons,
-  AntDesign,
-} from '@expo/vector-icons'
+import { Ionicons, Feather, MaterialIcons, AntDesign } from '@expo/vector-icons'
+import { VideoView, useVideoPlayer } from 'expo-video'
 import { useNavigation, useRoute } from '@react-navigation/native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTwitterData } from '../hooks/useTwitterData'
-import LinearGradient from 'react-native-linear-gradient'
+import { themeColors } from '../utils/Theme'
+import { useAnalysisResult } from '../contexts/AnalysisContext'
+import { QueryItem, QueryRequest, Topic } from '../models/Analysis'
+import { FeedPost, mapTopicToFeedPosts } from '../utils/FeedPostHelper'
+import { useAnalysis } from '../hooks/useAnalysis'
 
-const PRIMARY = '#5448B7'
-const PRIMARY_TEXT = '#6D28D9'
-const BG = '#F8F8FB'
-const TEXT = '#1F2937'
-const MUTED = '#667085'
-const BORDER = '#E6E8EC'
-const LIGHT_PURPLE = '#F5F1FB'
-const LIGHT_BLUE = '#F0F9FF'
-const TAG_BG = '#F8F4FF'
-const TAG_BORDER = '#E9D8FD'
+type FeedTab = 'Your Feed' | 'Wandering' | 'Uncharted'
+
+const TABS: FeedTab[] = ['Your Feed', 'Wandering', 'Uncharted']
+const { width: SCREEN_WIDTH } = Dimensions.get('window')
+
+const PAGE_BG = themeColors.background
+const CARD_BG = '#FFFFFF'
+const BORDER = '#E3E3E8'
+const MUTED = '#6B7280'
+const TEXT = '#1F2328'
+const PRIMARY = '#4E48BD'
+
+type SourceType = 'Twitter' | 'Reddit' | 'Youtube'
 
 export type PostCardModel = {
   id: string
-  source: 'Twitter' | 'Reddit' | 'Youtube'
+  source: SourceType
   title: string
   author: string
   tag: string
@@ -39,425 +45,771 @@ export type PostCardModel = {
   url?: string
 }
 
-const mockPosts: PostCardModel[] = [
-  {
-    id: '1',
-    source: 'Twitter',
-    title: `The real issue with AI regulation isn't whether we need it, but who gets to define the rules...`,
-    author: 'John Doe',
-    tag: 'Consumer impact',
-    likes: '2,400',
-  },
-  {
-    id: '2',
-    source: 'Reddit',
-    title: `Unpopular opinion: Most AI "safety" concerns are overblown. The real risk is...`,
-    author: 'Jane Smith',
-    tag: 'Consumer impact',
-    likes: '1,820',
-  },
-  {
-    id: '3',
-    source: 'Youtube',
-    title: `New research shows AI systems inherit more than capabilities — they inherit incentives...`,
-    author: 'AI Research Team',
-    tag: 'Consumer impact',
-    likes: '980',
-    url: 'https://www.youtube.com/watch?v=example',
-  },
-]
+// function derivePostsForTab(posts: FeedPost[], tab: FeedTab): FeedPost[] {
+//   if (posts.length === 0) {
+//     return []
+//   }
 
-function SummaryTag({ label }: { label: string }) {
+//   if (tab === 'Your Feed') {
+//     return posts
+//   }
+
+//   if (tab === 'Wandering') {
+//     const shifted = posts.length > 1 ? [...posts.slice(1), posts[0]] : [...posts]
+
+//     return shifted.map((post, index) => ({
+//       ...post,
+//       id: `wandering-${post.id}`,
+//       trendLabel: index % 2 === 0 ? 'Cross-perspective' : post.trendLabel,
+//       timeAgo: `${index + 7}h ago`,
+//       body:
+//         post.source === 'Reddit'
+//           ? `${post.body} More adjacent communities are adding context to this topic.`
+//           : `${post.body} Experts outside your usual circles are adding nuance to this view.`,
+//     }))
+//   }
+
+//   return [...posts].reverse().map((post, index) => ({
+//     ...post,
+//     id: `uncharted-${post.id}`,
+//     trendLabel: 'Unexpected angle',
+//     timeAgo: `${index + 9}h ago`,
+//     body: `${post.body} This perspective is less represented in your default feed.`,
+//   }))
+// }
+
+
+function InfoCard({ summary, title, postCount }: { summary: string; title: string; postCount: number }) {
   return (
-    <View style={styles.summaryTag}>
-      <Text style={styles.summaryTagText}>{label}</Text>
-    </View>
-  )
-}
-
-function TopicTag({ label }: { label: string }) {
-  return (
-    <View style={styles.topicTag}>
-      <Text style={styles.topicTagText}>{label}</Text>
-    </View>
-  )
-}
-
-function SourceIcon({ source }: { source: 'Twitter' | 'Reddit' | 'Youtube' }) {
-  if (source === 'Twitter') {
-    return <Feather name="twitter" size={15} color={MUTED} />
-  }
-
-  if (source === 'Reddit') {
-    return <Ionicons name="chatbubble-outline" size={15} color={MUTED} />
-  }
-
-  return <Feather name="message-circle" size={15} color={MUTED} />
-}
-
-function PostCard({ source, title, author, tag, likes, url }: PostCardModel) {
-
-  const openURL = () => {
-    if (url) {
-      Linking.openURL(url).catch((err) =>
-        console.error("Failed to open URL:", err)
-      );
-    }
-  }
-
-  return (
-    <View style={styles.postCard}>
-      <View style={styles.sourceRow}>
-        <SourceIcon source={source} />
-        <Text style={styles.sourceLabel}> Via {source}</Text>
-      </View>
-
-      <Text style={styles.postTitle} numberOfLines={10}>
-        {title}
-      </Text>
-
-      <Text style={styles.postAuthor}>{author}</Text>
-
-      <View style={styles.postFooter}>
-        <TopicTag label={tag} />
-
-        <View style={styles.rightFooter}>
-          <View style={styles.likeRow}>
-            <AntDesign name="like" size={18} color={MUTED} />
-            <Text style={styles.likesText}> {likes}</Text>
-          </View>
-
-          <TouchableOpacity style={styles.viewButton}>
-            <Feather name="external-link" size={18} color={PRIMARY} />
-            <Text style={styles.viewText} onPress={openURL}>
-              View
-            </Text>
-          </TouchableOpacity>
+    <View style={styles.feedTakeCard}>
+      <View style={styles.feedTakeHeader}>
+        <View style={styles.feedTakeIconWrap}>
+          <Image source={require('../assets/logo-white.png')} style={{ width: 20, height: 20 }} resizeMode="contain" />
+        </View>
+        <View>
+          <Text style={styles.feedTakeTitle}>{title}</Text>
+          <Text style={styles.feedTakeSubTitle}>Synthesized from {postCount} posts.</Text>
         </View>
       </View>
+      <Text style={styles.feedTakeBody}>{summary}</Text>
     </View>
   )
 }
 
-export default function TopicDetailScreen() {
+function FeedPostCard({ post }: { post: FeedPost }) {
+  const [isOverflowing, setIsOverflowing] = useState(false)
+  const [measuredLines, setMeasuredLines] = useState(0)
+  const prevOverflowRef = useRef<boolean | null>(null)
+  const videoUri = (post.media as any)?.uri
+  const videoPlayer = useVideoPlayer(videoUri ? { uri: videoUri } : null)
+  const openUrl = () => {
+    if (!post.url) {
+      return
+    }
 
+    Linking.openURL(post.url).catch((err) => {
+      console.error('Failed to open URL:', err)
+    })
+  }
+
+  return (
+    <TouchableOpacity onPress={openUrl}>
+      <View style={styles.postCard}>
+        {post.trendLabel ? (
+          <View style={styles.trendRow}>
+            <MaterialIcons name="trending-up" size={20} color="#19B9A7" />
+            <Text style={styles.trendText}>{post.trendLabel}</Text>
+          </View>
+        ) : null}
+
+        <View style={styles.userRow}>
+          <View style={styles.avatarCircle}>
+            {post.profileImageUrl ? (
+              <Image source={{ uri: post.profileImageUrl }} style={styles.avatarImage} resizeMode="cover" />
+            ) : (
+              <Text style={styles.avatarText}>{post.displayName[0]?.toUpperCase() || 'U'}</Text>
+            )}
+          </View>
+
+          <View style={styles.userMetaBlock}>
+            <View style={styles.userNameRow}>
+              <Text style={styles.userName}>{post.displayName}</Text>
+              {post.isVerified && post.source === 'Twitter' ? (
+                <Ionicons name="checkmark-circle" size={16} color="#1D9BF0" style={styles.inlineSpacer} />
+              ) : null}
+            </View>
+
+            <View style={styles.userHandleRow}>
+              <Text style={styles.userHandle}>{post.handleLine}</Text>
+              {post.subreddit ? (
+                <>
+                  <Text style={styles.dotSeparator}> • </Text>
+                  <Text style={styles.subredditText}>{post.subreddit}</Text>
+                </>
+              ) : null}
+            </View>
+          </View>
+
+          <View style={styles.platformWrap}>
+            {post.source === 'Twitter' ? (
+              <AntDesign name="x" size={20} color="#1D9BF0" />
+            ) : (
+              <Ionicons name="logo-reddit" size={20} color="#FF5700" />
+            )}
+            <Text style={styles.timeAgo}>{post.timeAgo}</Text>
+          </View>
+        </View>
+
+        {/** Collapse excessive blank lines to avoid huge whitespace */}
+        {(() => {
+          const displayBody = post.body ? post.body.replace(/\n{3,}/g, '\n\n').trim() : ''
+
+          return (
+
+            <View style={[styles.postBodyWrap, isOverflowing ? styles.postBodyWrapFixed : undefined]}>
+              <Text
+                style={styles.postBody}
+                onTextLayout={(e) => {
+                  // Only measure once to avoid layout-measure loops that cause flicker
+                  if (prevOverflowRef.current !== null) return
+
+                  const lines = e.nativeEvent.lines.length
+                  setMeasuredLines(lines)
+                  const overflowing = lines > 10
+                  prevOverflowRef.current = overflowing
+                  setIsOverflowing(overflowing)
+                }}
+              >
+                {displayBody}
+              </Text>
+              {(() => {
+                if (videoUri && /\.(mp4|mov|m3u8)(\?|$)/i.test(videoUri)) {
+                  return (
+                    <VideoView player={videoPlayer} style={styles.postMedia} nativeControls contentFit="cover" />
+                  )
+                }
+
+                return post.media ? <Image source={post.media} style={styles.postMedia} resizeMode="cover" /> : null
+              })()}
+              {isOverflowing && post.url ? (
+                <View style={styles.bodyOverlay} pointerEvents="box-none">
+                  <View style={styles.bodyFade} />
+                  <TouchableOpacity style={styles.seeMoreOverlayButton} onPress={openUrl}>
+                    <Text style={styles.seeMoreText}>See more ↗</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+            </View>
+          )
+        })()}
+
+        <View style={styles.postActionRow} />
+      </View>
+    </TouchableOpacity>
+  )
+}
+
+type TabBodyProps = {
+  infoText: string
+  takeTitle: string
+  summaryText: string
+  isLoading: boolean
+  error: string | null
+  feedPosts: FeedPost[]
+  numberOfSynthesizedPosts: number
+  scrollEnabled?: boolean
+}
+
+function TabBody({ infoText, takeTitle, summaryText, isLoading, error, feedPosts, numberOfSynthesizedPosts, scrollEnabled = true }: TabBodyProps) {
+  const showPosts = !isLoading && !error
+  const listData = showPosts ? feedPosts : []
+
+  return (
+    <FlatList
+      data={listData}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => <FeedPostCard post={item} />}
+      showsVerticalScrollIndicator={false}
+      scrollEnabled={scrollEnabled}
+      contentContainerStyle={styles.tabListContent}
+      ListHeaderComponent={
+        <>
+          <View style={styles.infoRow}>
+            <Ionicons name="information-circle-outline" size={17} color={PRIMARY} />
+            <Text style={styles.infoText}>{infoText}</Text>
+          </View>
+
+          <InfoCard summary={summaryText} title={takeTitle} postCount={numberOfSynthesizedPosts} />
+
+          <Text style={styles.postsSectionTitle}>Posts From This Perspective</Text>
+
+          {isLoading ? <Text style={styles.statusText}>Loading posts...</Text> : null}
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        </>
+      }
+      ListEmptyComponent={
+        !isLoading && !error ? (
+          <Text style={styles.statusText}>No posts available yet.</Text>
+        ) : null
+      }
+    />
+  )
+}
+
+type FeedTabConfig = {
+  infoText: string
+  takeTitle: string
+  summary: string
+  representativePosts?: FeedPost[]
+  synthesizedPostCount?: number
+}
+
+const DEFAULT_TAB_CONFIGS: Record<FeedTab, FeedTabConfig> = {
+  'Your Feed': {
+    infoText: 'Perspectives your feed already surfaces.',
+    takeTitle: "Your Feed's Take",
+    summary: '',
+    representativePosts: [],
+    synthesizedPostCount: 0,
+  },
+  Wandering: {
+    infoText: 'Balancing your feed with new insights.',
+    takeTitle: "Wandering's Take",
+    summary: '',
+    representativePosts: [],
+    synthesizedPostCount: 0,
+  },
+  Uncharted: {
+    infoText: 'Uncovering perspectives beyond your usual.',
+    takeTitle: "Uncharted's Take",
+    summary: '',
+    representativePosts: [],
+    synthesizedPostCount: 0,
+  },
+}
+
+
+export default function TopicDetailScreen() {
   const route = useRoute()
   const navigation = useNavigation()
 
   const [isLoading, setIsLoading] = useState(false)
-  const { fetchGetTimeline } = useTwitterData()
+  const [activeTab, setActiveTab] = useState<FeedTab>('Your Feed')
   const [cardData, setCardData] = useState<PostCardModel[]>([])
-  const [summaryByAI, setSummaryByAI] = useState('')
-  const [summaryTags, setSummaryTags] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
+  const pagerRef = useRef<FlatList<FeedTab>>(null)
+  const { analysis, differentPerspectives } = useAnalysisResult();
+  const { fetchDifferentPerspectives } = useAnalysis()
+  const [headline, setHeadline] = useState<string>("")
+  const [yourFeedTopic, setYourFeedTopic] = useState<Topic | null>(null)
+  const [tabConfigs, setTabConfigs] = useState<Record<FeedTab, FeedTabConfig>>(DEFAULT_TAB_CONFIGS)
+  const [isTabContentLoading, setIsTabContentLoading] = useState<Record<FeedTab, boolean>>({
+    'Your Feed': false,
+    'Wandering': false,
+    'Uncharted': false,
+  })
 
-  const { topicTitle, summary, postCount, topicId } = route.params as {
-    topicTitle: string
-    summary: string
-    postCount: number
-    topicId?: string
+
+  const differentPerspectivesForTopic = useMemo(() => {
+    if (!differentPerspectives || !yourFeedTopic) {
+      return null
+    } else {
+      return differentPerspectives.find(dp => dp.topic_id === yourFeedTopic.topic_id) || null
+    }
+  }, [differentPerspectives, yourFeedTopic])
+
+  const { topicId } = route.params as {
+    topicId: number
   }
 
-  const getTimeline = async () => {
-    try {
-      setIsLoading(true)
-      const data = await fetchGetTimeline()
-      setCardData(data)
-    } catch (err) {
-      console.error('Error fetching timeline:', err)
-      setError('Failed to load posts. Please try again later.')
-    } finally {
-      setIsLoading(false)
+  const topicInformation = useMemo(() => {
+    return analysis?.topics.find((t: Topic) => t.topic_id === topicId) || null;
+  }, [analysis, topicId]);
+
+
+  const pagerData = useMemo(() => TABS, [])
+
+  const handleTabPress = (nextTab: FeedTab) => {
+    if (nextTab === activeTab) {
+      return
+    }
+
+    const nextIndex = TABS.indexOf(nextTab)
+    pagerRef.current?.scrollToIndex({ index: nextIndex, animated: true })
+    setActiveTab(nextTab)
+  }
+
+  const handlePagerMomentumEnd = (event: { nativeEvent: { contentOffset: { x: number } } }) => {
+    const nextIndex = Math.round(event.nativeEvent.contentOffset.x / SCREEN_WIDTH)
+    const nextTab = TABS[nextIndex] ?? TABS[0]
+
+    if (nextTab !== activeTab) {
+      setActiveTab(nextTab)
     }
   }
 
-  const updatedTime = 'Updated 2h ago'
+  const getQueriesForTopic = (queries: QueryItem[]): QueryRequest[] => {
+    if (!queries || queries.length === 0) {
+      return [];
+    }
+
+    return queries.map((query) => ({
+      query_string: query.query_string.query_string, // ✅ correct path
+      platform:
+        query.query_string.platform === "reddit"
+          ? "reddit"
+          : "twitter", // ✅ safe fallback
+    }));
+  };
 
   useEffect(() => {
-    if (topicId != 'raw') {
-      console.log('Fetching timeline for topicId:', topicId)
-      setCardData(mockPosts)
-      setSummaryByAI('New EU AI regulations announced. Tech companies push back on compliance timelines.')
-      setSummaryTags(['Industry pushback', 'Regulatory focus', 'Consumer impact'])
-    } else {
-      setSummaryByAI('This is just a feed of posts without AI curation, so no summary is available. Scroll through the posts to see the unfiltered content stream from all sources.')
-      setSummaryTags([])
-      getTimeline()
+    console.log('Current different perspectives data:', differentPerspectives)
+
+    if ((activeTab === 'Wandering' || activeTab === 'Uncharted') && differentPerspectivesForTopic === null) {
+      setIsTabContentLoading(prev => ({
+        ...prev,
+        [activeTab]: true,
+      }))
+
+      fetchDifferentPerspectives({
+        topic_id: topicId,
+        keywords: topicInformation?.keywords || [],
+        queries: getQueriesForTopic(topicInformation?.queries || []),
+      }).then((data) => {
+        console.log('Fetched different perspectives data:', data)
+      }).catch((err) => {
+        console.error('Error fetching different perspectives:', err)
+      }).finally(() => {
+        setIsTabContentLoading(prev => ({
+          ...prev,
+          [activeTab]: false,
+        }))
+      })
+
     }
-  }, [])
+  }, [activeTab, differentPerspectivesForTopic])
+
+  useEffect(() => {
+    if (!differentPerspectivesForTopic) {
+      return
+    }
+    else {
+      setTabConfigs(prev => ({
+        ...prev,
+        'Wandering': {
+          ...prev['Wandering'],
+          summary: differentPerspectivesForTopic.wandering.long_summary,
+          representativePosts: mapTopicToFeedPosts(differentPerspectivesForTopic.wandering),
+          synthesizedPostCount: differentPerspectivesForTopic.wandering.n_posts,
+        },
+        'Uncharted': {
+          ...prev['Uncharted'],
+          summary: differentPerspectivesForTopic.unchanged.long_summary,
+          representativePosts: mapTopicToFeedPosts(differentPerspectivesForTopic.unchanged),
+          synthesizedPostCount: differentPerspectivesForTopic.unchanged.n_posts,
+        },
+      }))
+    }
+  }, [differentPerspectivesForTopic])
+
+
+  useEffect(() => {
+    console.log('Looking for topic with ID:', topicId)
+    const topic = topicInformation;
+    setYourFeedTopic(topic || null)
+    setTabConfigs(prev => ({
+      ...prev,
+      'Your Feed': {
+        ...prev['Your Feed'],
+        summary: topic ? topic.long_summary : '',
+        representativePosts: topic ? mapTopicToFeedPosts(topic) : [],
+        synthesizedPostCount: topic ? topic.n_posts : 0,
+      },
+    }))
+
+  }, [topicInformation])
 
   return (
-    <>
-      <View style={styles.headerCard}>
-        <View style={styles.topRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#374151" />
-          </TouchableOpacity>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.headerWrap}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backRow}>
+          <Ionicons name="arrow-back" size={14} color={TEXT} />
+          <Text style={styles.backText}>Back</Text>
+        </TouchableOpacity>
 
-          <View style={styles.titleBlock}>
-            <Text style={styles.title} numberOfLines={1}>
-              {topicTitle}
-            </Text>
-            <Text style={styles.subtitle}>
-              {updatedTime} • {postCount} posts
-            </Text>
-          </View>
-        </View>
-        <View style={styles.credibilityRow}>
-          <View style={styles.orangeDot} />
-          <Text style={styles.credibilityText}>Source credibility: Mixed</Text>
-          <Ionicons
-            name="information-circle-outline"
-            size={20}
-            color={MUTED}
-            style={styles.infoIcon}
-          />
-        </View>
+        <Text style={styles.screenTitle}>{yourFeedTopic?.headline || 'Topic Details'}</Text>
       </View>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
 
-        <LinearGradient colors={[LIGHT_PURPLE, LIGHT_BLUE]} start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }} style={styles.summaryCard}>
-          <View style={styles.summaryWrapper}>
-            <View style={styles.summaryHeader}>
-              <View style={styles.summaryIconWrap}>
-                <MaterialCommunityIcons
-                  name="star-four-points-outline"
-                  size={20}
-                  color="#FFFFFF"
-                />
+      <View style={styles.tabsWrap}>
+        {TABS.map((tab) => {
+          const isActive = tab === activeTab
+
+          return (
+            <TouchableOpacity
+              key={tab}
+              onPress={() => handleTabPress(tab)}
+              style={[styles.tabButton, isActive && styles.tabButtonActive]}
+            >
+              <Text style={[styles.tabText, isActive && styles.tabTextActive]}>{tab}</Text>
+            </TouchableOpacity>
+          )
+        })}
+      </View>
+
+      <View style={styles.contentShell}>
+        <FlatList
+          ref={pagerRef}
+          data={pagerData}
+          keyExtractor={(item) => item}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={handlePagerMomentumEnd}
+          renderItem={({ item }) => {
+            const tanConfig = tabConfigs[item]
+
+            return (
+              <View style={styles.page}>
+                {isTabContentLoading[item] ? (
+                  <View style={{ padding: 20 }}>
+                    <Text style={styles.statusText}>Loading {item} content...</Text>
+                  </View>
+                ) : (
+                  <TabBody
+                    infoText={tanConfig.infoText}
+                    takeTitle={tanConfig.takeTitle}
+                    summaryText={tanConfig.summary}
+                    isLoading={isLoading}
+                    error={error}
+                    feedPosts={tanConfig.representativePosts || []}
+                    numberOfSynthesizedPosts={tanConfig.synthesizedPostCount || 0}
+                  />)}
               </View>
-              <Text style={styles.summaryTitle}>Scrolis Summary</Text>
-            </View>
-
-            <Text style={styles.summaryBody}>
-              {summaryByAI}
-            </Text>
-
-            <View style={styles.summaryTagsRow}>
-              {summaryTags.length === 0 ? (
-                <Text style={{ color: MUTED, fontSize: 15, fontWeight: '500' }}>
-                  No summary tags available for raw feed.
-                </Text>
-              ) : (
-                summaryTags.map((tag, index) => (
-                  <SummaryTag key={index} label={tag} />
-                ))
-              )}
-
-            </View>
-          </View>
-        </LinearGradient>
-
-        {isLoading ? (
-          <Text>Loading...</Text>
-        ) : (
-          cardData.map((card) => <PostCard key={card.id} {...card} />)
-        )}
-
-      </ScrollView>
-    </>
+            )
+          }}
+        />
+      </View>
+    </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-
-  headerCard: {
-    backgroundColor: '#ffffff',
-    width: '100%',
-    paddingTop: 16,
-    paddingBottom: 10,
-    borderBottomColor: BORDER,
-    borderBottomWidth: 1,
-    marginBottom: 20,
-    // position: 'absolute',
-    // top: 0,
+  safeArea: {
+    flex: 1,
+    backgroundColor: PAGE_BG,
   },
-  topRow: {
+  headerWrap: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 12,
+  },
+  backRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginBottom: 16,
   },
-  backButton: {
-    marginRight: 12,
-    padding: 4,
+  backText: {
+    marginLeft: 8,
+    fontSize: 14,
+    lineHeight: 40,
+    fontWeight: '500',
+    color: TEXT,
   },
-  titleBlock: {
+  screenTitle: {
+    fontSize: 24,
+    lineHeight: 24,
+    fontWeight: '800',
+    color: TEXT,
+  },
+  tabsWrap: {
+    backgroundColor: CARD_BG,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: BORDER,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+  },
+  tabButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabButtonActive: {
+    borderBottomColor: PRIMARY,
+  },
+  tabText: {
+    color: '#868686',
+    fontSize: 17,
+    lineHeight: 24,
+    fontWeight: '700',
+  },
+  tabTextActive: {
+    color: PRIMARY,
+  },
+  contentShell: {
+    flex: 1,
+    backgroundColor: CARD_BG,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: BORDER,
+  },
+  page: {
+    width: SCREEN_WIDTH - 2,
     flex: 1,
   },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  subtitle: {
-    marginTop: 4,
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 0,
+  tabListContent: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
     paddingBottom: 120,
   },
-
-  metaTopRow: {
-    marginBottom: 5,
-  },
-  metaText: {
-    fontSize: 16,
-    color: MUTED,
-    fontWeight: '500',
-  },
-
-  credibilityRow: {
+  infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 5,
-    marginTop: 5,
-    paddingLeft: 20,
+    marginBottom: 16,
   },
-  orangeDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#F59E0B',
+  infoText: {
+    marginLeft: 2,
+    color: PRIMARY,
+    fontSize: 12,
+    lineHeight: 12,
+    fontWeight: '500',
+  },
+  feedTakeCard: {
+    backgroundColor: '#EEEDFD',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#B9B6E8',
+    padding: 16,
+    marginBottom: 22,
+  },
+  feedTakeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  feedTakeIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: PRIMARY,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
   },
-  credibilityText: {
-    fontSize: 15,
-    color: '#475467',
-    fontWeight: '600',
-  },
-  infoIcon: {
-    marginLeft: 8,
-  },
-  summaryWrapper: {
-    padding: 16,
-  },
-  summaryCard: {
-    width: '100%',
-    borderRadius: 24,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E9D5FF',
-    overflow: 'hidden',
-  },
-  summaryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 18,
-  },
-  summaryIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: PRIMARY,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-  },
-  summaryTitle: {
-    fontSize: 22,
-    fontWeight: '700',
+  feedTakeTitle: {
     color: TEXT,
-  },
-  summaryBody: {
     fontSize: 16,
-    lineHeight: 20,
-    color: TEXT,
-    fontWeight: '500',
-    marginBottom: 18,
+    lineHeight: 16,
+    fontWeight: '800',
   },
-  summaryTagsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  summaryTag: {
-    borderWidth: 1,
-    borderColor: TAG_BORDER,
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 999,
-  },
-  summaryTagText: {
-    fontSize: 15,
-    color: '#344054',
-    fontWeight: '600',
-  },
-
-  postCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 15,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: BORDER,
-    marginBottom: 20,
-  },
-  sourceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sourceLabel: {
-    fontSize: 15,
+  feedTakeSubTitle: {
     color: MUTED,
+    fontSize: 12,
+    lineHeight: 20,
     fontWeight: '500',
   },
-  postTitle: {
-    fontSize: 16,
-    lineHeight: 18,
-    color: '#182033',
-    fontWeight: '500',
+  feedTakeBody: {
+    color: '#1A1A1A',
+    fontSize: 15,
+    lineHeight: 24,
+    fontWeight: '400',
+  },
+  postsSectionTitle: {
+    color: TEXT,
+    fontSize: 18,
+    lineHeight: 28,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  statusText: {
+    color: MUTED,
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 12,
+  },
+  errorText: {
+    color: '#B42318',
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 12,
+  },
+  postCard: {
+    backgroundColor: themeColors.cardBackground,
+    borderWidth: 1,
+    borderColor: '#DEDEE3',
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 16,
+  },
+  trendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  trendText: {
+    color: TEXT,
+    marginLeft: 8,
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '600',
+  },
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     marginBottom: 10,
   },
-  postAuthor: {
-    fontSize: 15,
+  avatarCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#E3E2DF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 25, // optional if overflow hidden exists
+  },
+  avatarText: {
+    color: '#25235D',
+    fontSize: 28,
+    lineHeight: 32,
+    fontWeight: '800',
+  },
+  userMetaBlock: {
+    flex: 1,
+    paddingTop: 2,
+  },
+  userNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  inlineSpacer: {
+    marginLeft: 6,
+  },
+  userName: {
+    color: TEXT,
+    fontSize: 17,
+    lineHeight: 24,
+    fontWeight: '800',
+  },
+  userHandleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  userHandle: {
     color: MUTED,
-    marginBottom: 18,
+    fontSize: 14,
+    lineHeight: 21,
     fontWeight: '500',
   },
-  postFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  rightFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  topicTag: {
-    backgroundColor: TAG_BG,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 14,
-  },
-  topicTagText: {
+  dotSeparator: {
+    color: MUTED,
     fontSize: 14,
-    color: PRIMARY_TEXT,
-    fontWeight: '700',
+    lineHeight: 21,
   },
-  likeRow: {
+  subredditText: {
+    color: '#FF4A00',
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: '600',
+  },
+  platformWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 6,
+  },
+  timeAgo: {
+    marginLeft: 6,
+    color: MUTED,
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: '500',
+  },
+  postBody: {
+    color: '#23262F',
+    fontSize: 15,
+    lineHeight: 24,
+    fontWeight: '500',
+    marginBottom: 12,
+  },
+  postBodyWrap: {
+    position: 'relative',
+  },
+  postBodyWrapFixed: {
+    overflow: 'hidden',
+    height: 250,
+  },
+  bodyOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 56,
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
+    paddingBottom: 8,
+  },
+  bodyFade: {
+    ...StyleSheet.absoluteFillObject,
+    height: 56,
+    bottom: 0,
+    backgroundColor: 'rgba(255,255,255,0.88)',
+    pointerEvents: 'none',
+  },
+  seeMoreOverlayButton: {
+    backgroundColor: 'transparent',
+    paddingVertical: 4,
+    pointerEvents: 'auto',
+  },
+  postMedia: {
+    width: '100%',
+    height: 180,
+    borderRadius: 14,
+    marginBottom: 12,
+  },
+  postActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  metricRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginRight: 18,
   },
-  likesText: {
-    fontSize: 15,
-    color: MUTED,
+  metricText: {
+    marginLeft: 6,
+    color: '#6C6C6C',
+    fontSize: 14,
+    lineHeight: 20,
     fontWeight: '500',
   },
-  viewButton: {
-    flexDirection: 'row',
+  openLinkButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: '#D4D4D8',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  viewText: {
-    fontSize: 15,
+  seeMoreRow: {
+    marginTop: 6,
+  },
+  seeMoreText: {
     color: PRIMARY,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '500',
+    lineHeight: 20,
   },
 })

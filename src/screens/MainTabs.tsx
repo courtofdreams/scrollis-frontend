@@ -3,10 +3,8 @@ import React from 'react'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons'
 import FeedStackNavigator from '../navigators/FeedStackNavigator'
-import ExploreStackNavigator from '../navigators/ExploreStackNavigator'
 import SearchScreen from './SearchScreen'
 import ProfileScreen from './ProfileScreen'
-import { SafeAreaView } from 'react-native-safe-area-context'
 import { StyleSheet } from 'react-native';
 
 
@@ -14,8 +12,8 @@ import { StyleSheet } from 'react-native';
 const Tab = createBottomTabNavigator()
 
 export default function MainTabs() {
+
   return (
-    <SafeAreaView style={styles.container}>
       <Tab.Navigator
         screenOptions={({ route }) => ({
           headerShown: false,
@@ -42,15 +40,6 @@ export default function MainTabs() {
             if (route.name === 'FeedTab') {
               return <Ionicons name="home-outline" size={size} color={color} />
             }
-            if (route.name === 'ExploreTab') {
-              return (
-                <MaterialCommunityIcons
-                  name="compass-outline"
-                  size={size}
-                  color={color}
-                />
-              )
-            }
             if (route.name === 'SearchTab') {
               return <Feather name="search" size={size} color={color} />
             }
@@ -64,11 +53,6 @@ export default function MainTabs() {
           options={{ title: 'Feed' }}
         />
         <Tab.Screen
-          name="ExploreTab"
-          component={ExploreStackNavigator}
-          options={{ title: 'Explore' }}
-        />
-        <Tab.Screen
           name="SearchTab"
           component={SearchScreen}
           options={{ title: 'Search' }}
@@ -79,17 +63,6 @@ export default function MainTabs() {
           options={{ title: 'Profile' }}
         />
       </Tab.Navigator>
-    </SafeAreaView>
   )
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  
-  text: {
-    fontSize: 25,
-    fontWeight: '500',
-  },
-});

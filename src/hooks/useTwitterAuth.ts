@@ -9,6 +9,7 @@ import {
   TwitterUser,
   useAppAuthContext,
 } from "../contexts/AppAuthContext";
+import { saveTwitterToken, saveTwitterUser } from "../utils/TokenManager";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -47,6 +48,7 @@ async function sha256ToBase64Url(input: string) {
 
 type ExchangeResponse = {
   access_token: string;
+  twitter_user_info: MeResponse;
 };
 
 export function useTwitterAuth() {
@@ -58,39 +60,40 @@ export function useTwitterAuth() {
     clearTwitterAccessToken,
     setTwitterUser,
     clearTwitterUser,
+    accessToken: appAccessToken,
   } =
     useAppAuthContext();
   const [loading, setLoading] = useState(false);
   const pkceRef = useRef<{ state: string; codeVerifier: string } | null>(null);
 
-  const fetchProfileData = async (accessToken: string) => {
-    const apiUrl = `${process.env.EXPO_PUBLIC_API_BASE_URL}/api/twitter/me`;
+  // const fetchProfileData = async (accessToken: string) => {
+  //   const apiUrl = `${process.env.EXPO_PUBLIC_API_BASE_URL}/api/twitter/me`;
 
-    try {
-      const response = await fetch(apiUrl, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
+  //   try {
+  //     const response = await fetch(apiUrl, {
+  //       method: "GET",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //         Authorization: `Bearer ${accessToken}`,
+  //       },
+  //     });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
+  //     if (!response.ok) {
+  //       throw new Error(`HTTP ${response.status}`);
+  //     }
 
-      const profileData: MeResponse = await response.json();
-      console.log("Fetched Twitter profile data:", profileData);
+  //     const profileData: MeResponse = await response.json();
+  //     console.log("Fetched Twitter profile data:", profileData);
 
-      setTwitterUser(profileData.data);
+  //     setTwitterUser(profileData.data);
+  //     saveTwitterUser(profileData.data);
+  //     console.log("User session updated with Twitter profile data");
 
-      console.log("User session updated with Twitter profile data");
-
-    } catch (err) {
-      console.warn("Failed to fetch profile data:", err);
-    } finally {
-    }
-  };
+  //   } catch (err) {
+  //     throw new Error(`Failed to fetch Twitter profile data: ${err instanceof Error ? err.message : String(err)}`);
+  //   } finally {
+  //   }
+  // };
 
   const signIn = useCallback(async () => {
     setLoading(true);
@@ -135,7 +138,7 @@ export function useTwitterAuth() {
 
       const res = await fetch(`${API_BASE_URL}/api/twitter/auth/exchange`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", 'Authorization': `Bearer ${appAccessToken}` },
         body: JSON.stringify({
           code,
           code_verifier: pkceRef.current.codeVerifier,
@@ -151,10 +154,10 @@ export function useTwitterAuth() {
       }
 
       const data: ExchangeResponse = await res.json();
-      
-      setTwitterAccessToken(data.access_token);
+      setTwitterUser(data.twitter_user_info.data);
 
-      await fetchProfileData(data.access_token);
+      setTwitterAccessToken(data.access_token);
+      saveTwitterToken(data.access_token);
 
       return data;
     } finally {
@@ -167,7 +170,7 @@ export function useTwitterAuth() {
     try {
       const res = await fetch(`${API_BASE_URL}/api/twitter/auth/refresh`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", 'Authorization': `Bearer ${appAccessToken}` },
         credentials: "include",
       });
 
@@ -179,6 +182,7 @@ export function useTwitterAuth() {
       const data: ExchangeResponse = await res.json();
 
       setTwitterAccessToken(data.access_token);
+      setTwitterUser(data.twitter_user_info.data);
 
       return data;
     } finally {
@@ -190,6 +194,7 @@ export function useTwitterAuth() {
     try {
       await fetch(`${API_BASE_URL}/auth/twitter/logout`, {
         method: "POST",
+        headers: { 'Authorization': `Bearer ${appAccessToken}` },
         credentials: "include",
       });
     } catch {

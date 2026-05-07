@@ -12,24 +12,29 @@ import { RootStackNavigationProp, RootStackParamList } from '../navigators/RootN
 import { themeColors } from '../utils/Theme';
 import { FeedStackParamList } from '../navigators/FeedStackNavigator';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
+import LogoIcon from '../components/LogoIcon';
+import { useAppAuthContext } from '../contexts/AppAuthContext';
 
 
 
 export default function StartingScreen() {
   const navigation = useNavigation<RootStackNavigationProp>()
+  const { isAuthenticated, needToConnectedSocial } = useAppAuthContext()
+  
 
   const onGetStarted = () => {
-    navigation.navigate("CreateAccount")
+    if (isAuthenticated && needToConnectedSocial) {
+      navigation.navigate("SocialMediaSync")
+    } else {
+      navigation.navigate("Onboarding", { currentIndex: 0 })
+    }
   }
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         {/* Logo */}
-        <Image
-          source={require('../assets/logo.png')}
-          style={styles.logo}
-        />
+        <LogoIcon />
 
         {/* Scrolis Text */}
         <Text style={styles.brandName}>Scrolis</Text>
@@ -53,7 +58,7 @@ export default function StartingScreen() {
         </Pressable>
 
         <Pressable
-        //   onPress={() => navigation.navigate("Login", {})}
+         onPress={() => navigation.navigate("Login")}
         >
           <Text style={styles.secondaryButtonText}>I already have an account</Text>
         </Pressable>

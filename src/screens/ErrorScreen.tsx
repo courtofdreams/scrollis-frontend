@@ -1,17 +1,18 @@
+
 import React from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 
-export default function ExploreScreen() {
+export default function ErrorScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Explore</Text>
+      <Text style={styles.title}>Error</Text>
       <Text style={styles.subtitle}>
-        This is the Explore screen. Add diverse viewpoints, discovery topics,
-        or recommendation sections here.
+        An error occurred. Please try again later.
       </Text>
     </View>
   )
 }
+
 
 const styles = StyleSheet.create({
   container: {
