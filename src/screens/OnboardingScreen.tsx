@@ -36,21 +36,21 @@ const ONBOARDING_DATA: OnboardingItem[] = [
         id: '1',
         title: 'Your daily digest',
         description:
-            'A handful of stories worth your time. When you finish them, you’re done.',
+            'A short list of curated stories that are worth your time.',
         image: require('../assets/onboarding1.png'),
     },
     {
         id: '2',
-        title: 'Your feed, distilled',
+        title: 'Your feed, unpacked',
         description:
-            'We read what the people you follow are saying, then give you a balanced take.',
+            'Conversations from the people you follow — and every side of those stories.',
         image: require('../assets/onboarding2.png'),
     },
     {
         id: '3',
-        title: 'Step outside your bubble.',
+        title: 'Step outside your bubble',
         description:
-            'Start with For You. Wander a little. Or go somewhere Uncharted. Never forced.',
+            'Start with For You. Wander a little. Or go somewhere Uncharted.',
         image: require('../assets/onboarding3.png'),
     },
 ];

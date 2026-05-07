@@ -245,7 +245,7 @@ function DigestDetail({ digest }: { digest: HistoricalDigest }) {
             </View>
 
             {/* Summary */}
-            <Text style={styles.digestSummary}>{digest.summary}</Text>
+            {/* <Text style={styles.digestSummary}>{digest.summary}</Text> */}
 
             {/* Topic pills */}
             <View style={styles.topicPillsRow}>
@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
     sheet: {
         position: 'absolute', bottom: 0, left: 0, right: 0,
         backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-        paddingHorizontal: 20, paddingBottom: 40, height: SCREEN_HEIGHT * 0.75, 
+        paddingHorizontal: 20, paddingBottom: 40, height: SCREEN_HEIGHT * 0.80, 
     },
     handle: {
         width: 36, height: 4, backgroundColor: '#E5E7EB', borderRadius: 2,
