@@ -17,6 +17,30 @@ export function useAuthentication() {
 
     const { setSession, accessToken, setNeedToConnectedSocial } = useAppAuthContext();
 
+    const getLoginStreak = async (): Promise<number> => {
+        const apiUrl = `${process.env.EXPO_PUBLIC_API_BASE_URL}/api/user/login-streak`;
+
+        try {
+            const response = await fetch(apiUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${accessToken}`
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch login streak');
+            }
+
+            const data = await response.json();
+            return data.login_streak;
+        } catch (error) {
+            console.error('Error fetching login streak:', error);
+            return 0; // Return a default value or handle it as needed
+        }
+    };
+
     const updateNeedToSyncSocialMedia = (value: boolean) => {
         console.log("access token app", accessToken);
         const apiUrl = `${process.env.EXPO_PUBLIC_API_BASE_URL}/api/user/need-to-connected-social`;
@@ -120,5 +144,5 @@ export function useAuthentication() {
         }
     };
 
-    return { signUp, signIn, updateNeedToSyncSocialMedia };
+    return { signUp, signIn, updateNeedToSyncSocialMedia, getLoginStreak };
 }

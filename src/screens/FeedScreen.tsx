@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAnalysisResult } from '../contexts/AnalysisContext'
 import { RepresentativePost, Topic, TopicDigestResponse } from '../models/Analysis'
 import { useAppAuthContext } from '../contexts/AppAuthContext'
+import { useAuthentication } from '../hooks/useAuthentication'
 
 type FeedScreenNavProp = NativeStackNavigationProp<
     FeedStackParamList,
@@ -36,7 +37,9 @@ export default function FeedScreen() {
     const [feedTopics, setFeedTopics] = React.useState<TopicView[]>([]);
     const [digestSummary, setDigestSummary] = React.useState<string>("")
     const [currentDate, setCurrentDate] = React.useState<string>("");
-    const { loginStreak } = useAppAuthContext();
+    const [loginStreak, setLoginStreak] = React.useState<number>(0);
+    const { getLoginStreak } = useAuthentication();
+
 
     const navigateToTopicDetail = (topicId: number) => {
         console.log('Navigating to TopicDetail with topicId:', topicId);
@@ -77,6 +80,16 @@ export default function FeedScreen() {
             setFeedTopics(parseAnalysisToFeedTopics(analysis));
         }
     }, [analysis]);
+
+    useEffect(() => {
+        const fetchLoginStreak = async () => {
+            const streak = await getLoginStreak();
+            console.log("Fetched login streak:", streak);
+            setLoginStreak(streak);
+        };
+
+        fetchLoginStreak();
+    }, []);
 
     return (
         <SafeAreaView style={styles.container}>

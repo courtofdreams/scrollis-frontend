@@ -123,3 +123,27 @@ export type HistoricalTopic = {
 export type HistoricalTopicsResponse = {
   historicalTopics: HistoricalTopic[];
 };
+
+export interface TopicDigest {
+  topicId: number;
+  headline: string;
+  category: string;
+  shortSummary: string;
+  keywords: string[];
+  nPosts: number;
+  nPerspectives: number;
+}
+
+export interface HistoricalDigest {
+  date: string;
+  userId: string;
+  createdAt: string;
+  snapshottedAt: string;
+  summary: string;
+  topics: TopicDigest[];
+  weekday: string;
+}
+
+export interface HistoricalDigestResponse {
+  historicalDigests: HistoricalDigest[];
+}

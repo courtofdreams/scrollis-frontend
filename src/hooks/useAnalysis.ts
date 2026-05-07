@@ -1,6 +1,6 @@
 import { useAnalysisResult } from "../contexts/AnalysisContext";
 import { useAppAuthContext } from "../contexts/AppAuthContext";
-import { DifferentPerspectiveRequest, DifferentPerspectiveResponse, HistoricalTopicsResponse, TopicDigestResponse } from "../models/Analysis";
+import { DifferentPerspectiveRequest, DifferentPerspectiveResponse, HistoricalDigestResponse, HistoricalTopicsResponse, TopicDigestResponse } from "../models/Analysis";
 
 export function useAnalysis() {
     const { accessToken } = useAppAuthContext();
@@ -89,5 +89,23 @@ export function useAnalysis() {
       return await response.json();
     };
 
-    return { fetchAnalysis, fetchDifferentPerspectives, fetchHistoricalTopics };
+    const fetchHistoricalDigests = async (): Promise<HistoricalDigestResponse> => {
+      const apiUrl = `${process.env.EXPO_PUBLIC_API_BASE_URL}/api/analyze/historical-digests`;
+
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch historical digests data");
+      }
+
+      return await response.json();
+    };
+
+    return { fetchAnalysis, fetchDifferentPerspectives, fetchHistoricalTopics, fetchHistoricalDigests };
 }

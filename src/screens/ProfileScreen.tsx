@@ -9,6 +9,10 @@ import { useAppAuthContext } from '../contexts/AppAuthContext'
 import { useAnalysisResult } from '../contexts/AnalysisContext'
 import { HistoricalTopic, Topic } from '../models/Analysis'
 import { useAnalysis } from '../hooks/useAnalysis'
+import ArchivesScreen from './ArchivesScreen'
+
+interface ProfileScreenProps {
+}
 
 const colorsSeries = [
   '#4F47BD',
@@ -23,8 +27,9 @@ const colorsSeries = [
   '#B9B5E3',
 ]
 
-export default function ProfileScreen() {
+export default function ProfileScreen({}: ProfileScreenProps) {
   const [activeRange, setActiveRange] = useState<'7d' | '30d'>('7d')
+  const [showArchivesModal, setShowArchivesModal] = useState(false)
   const { name, username }= useAppAuthContext()
   const { analysis } = useAnalysisResult();
   const { fetchHistoricalTopics } = useAnalysis();
@@ -102,7 +107,7 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.profileHeader}>
-          <Pressable style={styles.calendarButton}>
+          <Pressable style={styles.calendarButton} onPress={() => setShowArchivesModal(true)}>
             <MaterialIcons style={styles.calendarLogo} name="calendar-today" size={10}/>
           </Pressable>
           <View style={styles.avatarWrap}>
@@ -199,6 +204,7 @@ export default function ProfileScreen() {
           </View>
         </View>
       </ScrollView>
+      <ArchivesScreen visible={showArchivesModal} onClose={() => setShowArchivesModal(false)} />
     </SafeAreaView>
   )
 }
