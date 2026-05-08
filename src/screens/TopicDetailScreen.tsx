@@ -144,7 +144,7 @@ function FeedPostCard({ post }: { post: FeedPost }) {
               {post.subreddit ? (
                 <>
                   <Text style={styles.dotSeparator}> • </Text>
-                  <Text style={styles.subredditText}>{post.subreddit}</Text>
+                  <Text numberOfLines={1} style={styles.subredditText}>{post.subreddit}</Text>
                 </>
               ) : null}
             </View>
@@ -723,6 +723,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
     fontWeight: '600',
+    width: 130,
+    
   },
   platformWrap: {
     flexDirection: 'row',
