@@ -20,10 +20,22 @@ export function parseTweetsResponse(data: TweetPostsResponse): PostCardModel[] {
 function cleanTweetText(text: string): string {
   if (!text) return ''
 
-  return text
+  return decodeHtmlEntities(text)
     .replace(/https?:\/\/\S+/g, '')
-    .replace(/\s+/g, ' ')
+    .replace(/\n\n+/g, '\n\n')
+    .replace(/[ \t\r]+/g, ' ')
+    .replace(/ \n /g, '\n')
     .trim()
+}
+
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
 }
 
 function inferTagFromTweet(text: string): string {

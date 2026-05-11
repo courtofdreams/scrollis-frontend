@@ -50,6 +50,30 @@ const getMedia = (
   }
 }
 
+const cleanPostText = (text: string): string => {
+  if (!text) return ''
+
+  return decodeHtmlEntities(text)
+    .replace(/This post contains content not supported on old Reddit\.?\s*/i, '')
+    .replace(/\[Click here to view the full post\]\(https?:\/\/[^)]+\)/gi, '')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '$1')
+    .replace(/https?:\/\/\S+/g, '')
+    .replace(/\n\n+/g, '\n\n')
+    .replace(/[ \t\r]+/g, ' ')
+    .replace(/ \n /g, '\n')
+    .trim()
+}
+
+const decodeHtmlEntities = (text: string): string => {
+  return text
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+}
+
 // ---------- mapper ----------
 export const mapTopicToFeedPosts = (
   topic: Topic
@@ -74,10 +98,11 @@ export const mapTopicToFeedPosts = (
 
       timeAgo: getTimeAgo(post.created_at),
 
-      body:
+      body: cleanPostText(
         post.title && post.selftext
           ? `${post.title}\n\n${post.selftext}`
-          : post.title || post.text,
+          : post.title || post.text || ''
+      ),
 
       likes: formatCount(
         isTwitter

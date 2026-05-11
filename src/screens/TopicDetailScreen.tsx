@@ -32,8 +32,32 @@ const BORDER = '#E3E3E8'
 const MUTED = '#6B7280'
 const TEXT = '#1F2328'
 const PRIMARY = '#4E48BD'
+const TWITTER_BLUE = '#1D9BF0'
 
 type SourceType = 'Twitter' | 'Reddit' | 'Youtube'
+
+type TextPart = {
+  type: 'text' | 'hashtag' | 'mention'
+  content: string
+}
+
+function parseTextWithHashtagsAndMentions(text: string): TextPart[] {
+  const parts: TextPart[] = []
+  const regex = /(#\w+)|(@\w+)|([^#@\s][^#@]*?)(?=[#@]|$)/g
+  let match
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match[1]) {
+      parts.push({ type: 'hashtag', content: match[1] })
+    } else if (match[2]) {
+      parts.push({ type: 'mention', content: match[2] })
+    } else if (match[3]) {
+      parts.push({ type: 'text', content: match[3] })
+    }
+  }
+
+  return parts.length > 0 ? parts : [{ type: 'text', content: text }]
+}
 
 export type PostCardModel = {
   id: string
@@ -163,6 +187,7 @@ function FeedPostCard({ post }: { post: FeedPost }) {
         {/** Collapse excessive blank lines to avoid huge whitespace */}
         {(() => {
           const displayBody = post.body ? post.body.replace(/\n{3,}/g, '\n\n').trim() : ''
+          const textParts = parseTextWithHashtagsAndMentions(displayBody)
 
           return (
 
@@ -180,7 +205,27 @@ function FeedPostCard({ post }: { post: FeedPost }) {
                   setIsOverflowing(overflowing)
                 }}
               >
-                {displayBody}
+                {textParts.map((part, idx) => {
+                  if (part.type === 'hashtag') {
+                    return (
+                      <Text key={idx} style={styles.hashtag}>
+                        {part.content}
+                      </Text>
+                    )
+                  }
+                  if (part.type === 'mention') {
+                    return (
+                      <Text key={idx} style={styles.mention}>
+                        {part.content}
+                      </Text>
+                    )
+                  }
+                  return (
+                    <Text key={idx}>
+                      {part.content}
+                    </Text>
+                  )
+                })}
               </Text>
               {(() => {
                 if (videoUri && /\.(mp4|mov|m3u8)(\?|$)/i.test(videoUri)) {
@@ -744,6 +789,20 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     fontWeight: '500',
     marginBottom: 12,
+  },
+  hashtag: {
+    color: TWITTER_BLUE,
+    fontSize: 15,
+    lineHeight: 24,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
+  },
+  mention: {
+    color: TWITTER_BLUE,
+    fontSize: 15,
+    lineHeight: 24,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
   },
   postBodyWrap: {
     position: 'relative',
